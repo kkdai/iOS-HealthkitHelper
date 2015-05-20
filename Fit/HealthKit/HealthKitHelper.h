@@ -14,8 +14,12 @@
 
 @interface HealthKitHelper : NSObject
 @property (nonatomic) HKHealthStore *healthStore;
+@property (nonatomic) NSMutableArray *localDataList;
 
-- (id) initKitWithCheckHealthStore:(HKHealthStore*) appHLStore :(UIViewController *) parentView;// :(void (^)(BOOL success, NSError *))compleUIAction;
+- (id) initKitWithCheckHealthStore:(HKHealthStore*) appHLStore :(UIViewController *) parentView;
+//Save/Load Data
+- (void)loadDataFromPref;
+- (void)saveDataToPref;
 
 // Get single result
 - (double)getMostRecentBloodPressureDIS;

@@ -17,7 +17,6 @@
     _HeartRate = 0;
     _StepCount = 0;
     _Distance = 0;
-    _UV = 0;
     _Calories = 0.0;
     return _id;
 }

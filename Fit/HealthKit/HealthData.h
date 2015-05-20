@@ -10,12 +10,13 @@
 
 @interface HealthData : NSObject
 @property (nonatomic) NSDate *EstimateDate;
+//BP
 @property (nonatomic) double BloodPressureSystolic;
 @property (nonatomic) double BloodPressureDiastolic;
 @property (nonatomic) double HeartRate; //Pulse
+//SP
 @property (nonatomic) double StepCount;
 @property (nonatomic) double Distance;
-@property (nonatomic) double UV;
 @property (nonatomic) float Calories;
 - (id) initObj;
 

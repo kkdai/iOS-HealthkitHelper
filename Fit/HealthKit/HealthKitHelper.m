@@ -9,16 +9,13 @@
 #import "HealthKitHelper.h"
 
 @interface HealthKitHelper()
-{
-    NSMutableArray *localDataList;
-}
 
 @end
 @implementation HealthKitHelper
 - (id) initKitWithCheckHealthStore:(HKHealthStore*) appHLStore :(UIViewController *) parentView //:(void (^)(BOOL success, NSError* error))compleUIAction
 {
     id _id= [super init];
-    localDataList = nil;
+    _localDataList = nil;
     //get healthStore instance from appdelegate in Bar
     _healthStore = appHLStore;
     dispatch_semaphore_t sema = dispatch_semaphore_create(0);
@@ -47,13 +44,15 @@
         [parentView presentViewController:alert animated:YES completion:nil];
         //return nil;
         
-        localDataList = [[NSMutableArray alloc] init];
-        [self loadDataFromPref];
         return _id;
     }
 
     dispatch_semaphore_wait(sema, DISPATCH_TIME_FOREVER);
     sema = NULL;
+
+    //Load data from Pref
+    _localDataList = [[NSMutableArray alloc] init];
+    [self loadDataFromPref];
     return _id;
 }
 
@@ -70,15 +69,20 @@
 
     //Running
     NSMutableArray *sp_StepCount = [[NSMutableArray alloc] init];
+    NSMutableArray *sp_Distance = [[NSMutableArray alloc] init];
+    NSMutableArray *sp_Calories = [[NSMutableArray alloc] init];
     
-    for(HealthData *peripheralData in localDataList)
+    for(HealthData *peripheralData in _localDataList)
     {
         //sensor data- BP
         [bp_BloodPressureSystolic addObject:[NSNumber numberWithDouble:peripheralData.BloodPressureDiastolic]];
         [bp_BloodPressureDiastolic addObject:[NSNumber numberWithFloat:peripheralData.BloodPressureSystolic]];
         [bp_HeartRate addObject:[NSNumber numberWithFloat:peripheralData.HeartRate]];
-        [bp_EstimateDate addObject:peripheralData.EstimateDate];
+        if (peripheralData.EstimateDate != nil)
+            [bp_EstimateDate addObject:peripheralData.EstimateDate];
         [sp_StepCount addObject:[NSNumber numberWithDouble:peripheralData.StepCount]];
+        [sp_Distance addObject:[NSNumber numberWithDouble:peripheralData.Distance]];
+        [sp_Calories addObject:[NSNumber numberWithFloat:peripheralData.Calories]];
     }
     
     //sensor data- BP
@@ -87,41 +91,43 @@
     [pref setObject:bp_HeartRate forKey:@"bp_HeartRate"];
     [pref setObject:bp_EstimateDate forKey:@"bp_BloodPresureEstimateDate"];
     [pref setObject:sp_StepCount forKey:@"sp_StepCount"];
+    [pref setObject:sp_Distance forKey:@"sp_Distance"];
+    [pref setObject:sp_Calories forKey:@"sp_Calories"];
     [pref synchronize];
 }
 
 -(void)freeBPDataList
 {
-    @synchronized(localDataList)
+    @synchronized(_localDataList)
     {
-        while(localDataList.count)
+        while(_localDataList.count)
         {
-            [localDataList removeObjectAtIndex:0];
+            [_localDataList removeObjectAtIndex:0];
         }
     }
 }
 
 -(void)loadDataFromPref
 {    
-    @synchronized(localDataList)
+    @synchronized(_localDataList)
     {
         [self freeBPDataList];
         
         NSUserDefaults *pref=[NSUserDefaults standardUserDefaults];
-        
-        
+        //general data- timestamp
+        NSArray *bp_EstimateDate = [pref objectForKey:@"bp_BloodPresureEstimateDate"];
         //sensor data- BP
         NSArray *bp_BloodPressureSystolic = [pref objectForKey:@"bp_BloodPressureSystolic"];
         NSArray *bp_BloodPressureDiastolic = [pref objectForKey:@"bp_BloodPressureDiastolic"];
         NSArray *bp_HeartRate = [pref objectForKey:@"bp_HeartRate"];
-        NSArray *bp_EstimateDate = [pref objectForKey:@"bp_BloodPresureEstimateDate"];
+        //sensor data- SP
         NSArray *sp_StepCount = [pref objectForKey:@"sp_StepCount"];
-        
-        
-        HealthData *BPObj = [[HealthData alloc] init];
+        NSArray *sp_Distance = [pref objectForKey:@"sp_Distance"];
+        NSArray *sp_Calories = [pref objectForKey:@"sp_Calories"];
         
         for(int i=0;i<bp_EstimateDate.count;i++)
         {
+            HealthData *BPObj = [[HealthData alloc] init];
             //sensor data- BP
             if(bp_BloodPressureSystolic != nil)
                 BPObj.BloodPressureSystolic = [(NSNumber*)bp_BloodPressureSystolic[i] doubleValue];
@@ -133,9 +139,12 @@
                 BPObj.EstimateDate = (NSDate*)bp_EstimateDate[i];
             if(sp_StepCount != nil)
                 BPObj.StepCount = [(NSNumber*)sp_StepCount[i] doubleValue];
+            if(sp_Distance != nil)
+                BPObj.Distance = [(NSNumber*)sp_Distance[i] doubleValue];
+            if(sp_Calories != nil)
+                BPObj.Calories = [(NSNumber*)sp_Calories[i] floatValue];
+            [_localDataList addObject:BPObj];
         }
-        
-        [localDataList addObject:BPObj];
         
         dispatch_async(dispatch_get_main_queue(), ^{
             //
@@ -184,6 +193,20 @@
 #pragma -mark Data Write
 - (void)saveBloodPressure:(double)Systolic :(double)Diastolic :(NSDate*)times {
 
+    if (times == NULL)
+        times = [NSDate date];
+
+    if (_localDataList != nil)
+    {
+        [self loadDataFromPref];
+        HealthData *HObj = [[HealthData alloc] init];
+        HObj.BloodPressureSystolic = Systolic;
+        HObj.BloodPressureDiastolic = Diastolic;
+        HObj.EstimateDate = times;
+        [_localDataList addObject:HObj];
+        [self saveDataToPref];
+    }
+
     HKUnit *BloodPressureUnit = [HKUnit millimeterOfMercuryUnit];
     
     HKQuantity *SystolicQuantity = [HKQuantity quantityWithUnit:BloodPressureUnit doubleValue:Systolic];
@@ -192,8 +215,6 @@
     HKQuantityType *SystolicType = [HKQuantityType quantityTypeForIdentifier:HKQuantityTypeIdentifierBloodPressureSystolic];
     HKQuantityType *DiastolicType = [HKQuantityType quantityTypeForIdentifier:HKQuantityTypeIdentifierBloodPressureDiastolic];
     
-    if (times == NULL)
-        times = [NSDate date];
     
     HKQuantitySample *SystolicSample = [HKQuantitySample quantitySampleWithType:SystolicType quantity:SystolicQuantity startDate:times endDate:times];
     HKQuantitySample *DiastolicSample = [HKQuantitySample quantitySampleWithType:DiastolicType quantity:DiastolicQuantity startDate:times endDate:times];
@@ -216,11 +237,16 @@
 
 - (void)setHeartRate:(double)heartRate :(NSDate*)times
 {
-    if (localDataList != nil)
+    if (times == NULL)
+        times = [NSDate date];
+
+    if (_localDataList != nil)
     {
-        HealthData *BPObj = [[HealthData alloc] init];
-        BPObj.HeartRate = heartRate;
-        [localDataList addObject:BPObj];
+        [self loadDataFromPref];
+        HealthData *HObj = [[HealthData alloc] init];
+        HObj.HeartRate = heartRate;
+        HObj.EstimateDate = times;
+        [_localDataList addObject:HObj];
         [self saveDataToPref];
     }
     
@@ -228,62 +254,69 @@
     HKUnit *dataUnit = [HKUnit unitFromString:@"count/min"];
     HKQuantity *HRQuantity = [HKQuantity quantityWithUnit:dataUnit doubleValue:heartRate];
     HKQuantityType *HRType = [HKQuantityType quantityTypeForIdentifier:HKQuantityTypeIdentifierHeartRate];
-    if (times == NULL)
-        times = [NSDate date];
     [self setDataTypeintoHealthStore:dataUnit :HRQuantity :HRType :times :times :heartRate];
 }
 
 - (void)setStepCount:(double)stepcount :(NSDate*)times
 {
-    if (localDataList != nil)
+    if (times == NULL)
+        times = [NSDate date];
+
+    if (_localDataList != nil)
     {
-        HealthData *SPObj = [[HealthData alloc] init];
-        SPObj.StepCount = stepcount;
-        [localDataList addObject:SPObj];
+        [self loadDataFromPref];
+        HealthData *HObj = [[HealthData alloc] init];
+        HObj.StepCount = stepcount;
+        HObj.EstimateDate = times;
+        [_localDataList addObject:HObj];
         [self saveDataToPref];
     }
     
     HKUnit *dataUnit = [HKUnit unitFromString:@"count"];
     HKQuantity *Quantity = [HKQuantity quantityWithUnit:dataUnit doubleValue:stepcount];
     HKQuantityType *Type = [HKQuantityType quantityTypeForIdentifier:HKQuantityTypeIdentifierStepCount];
-    if (times == NULL)
-        times = [NSDate date];
     [self setDataTypeintoHealthStore:dataUnit :Quantity :Type :times :times :stepcount];
 }
 
 - (void)setDistance:(double)meters :(NSDate*)times
 {
-    if (localDataList != nil)
+    if (times == NULL)
+        times = [NSDate date];
+
+    if (_localDataList != nil)
     {
-        HealthData *SPObj = [[HealthData alloc] init];
-        SPObj.Distance = meters;
-        [localDataList addObject:SPObj];
+        [self loadDataFromPref];
+        HealthData *HObj = [[HealthData alloc] init];
+        HObj.Distance = meters;
+        HObj.EstimateDate = times;
+        [_localDataList addObject:HObj];
         [self saveDataToPref];
     }
     
     HKUnit *dataUnit = [HKUnit meterUnit];
     HKQuantity *Quantity = [HKQuantity quantityWithUnit:dataUnit doubleValue:meters];
     HKQuantityType *HRType = [HKQuantityType quantityTypeForIdentifier:HKQuantityTypeIdentifierDistanceWalkingRunning];
-    if (times == NULL)
-        times = [NSDate date];
     [self setDataTypeintoHealthStore:dataUnit :Quantity :HRType :times :times :meters];
 }
 
 - (void)setActiveCalories:(float)KCalories :(NSDate*)times
 {
-    if (localDataList != nil)
+    if (times == NULL)
+        times = [NSDate date];
+
+    if (_localDataList != nil)
     {
-        HealthData *SPObj = [[HealthData alloc] init];
-        SPObj.Calories = KCalories;
-        [localDataList addObject:SPObj];
+        [self loadDataFromPref];
+        HealthData *HObj = [[HealthData alloc] init];
+        HObj.Calories = KCalories;
+        HObj.EstimateDate = times;
+        [_localDataList addObject:HObj];
         [self saveDataToPref];
     }
     double calories = KCalories * 1000;
     HKUnit *dataUnit = [HKUnit calorieUnit];
     HKQuantity *Quantity = [HKQuantity quantityWithUnit:dataUnit  doubleValue:calories];
     HKQuantityType *HRType = [HKQuantityType quantityTypeForIdentifier:HKQuantityTypeIdentifierActiveEnergyBurned];
-    if (times == NULL)
-        times = [NSDate date];
     [self setDataTypeintoHealthStore:dataUnit :Quantity :HRType :times :times :calories];
 }
 
@@ -332,9 +365,9 @@
 
 - (double)getMostRecentActiveCalories
 {
-    HKQuantityType *DistanceType = [HKQuantityType quantityTypeForIdentifier:HKQuantityTypeIdentifierActiveEnergyBurned];
-    HKUnit *DistanceUnit = [HKUnit calorieUnit];
-    return [self getMostRecentWithTypeUnit:DistanceType :DistanceUnit];
+    HKQuantityType *HealthType = [HKQuantityType quantityTypeForIdentifier:HKQuantityTypeIdentifierActiveEnergyBurned];
+    HKUnit *HealthUnit = [HKUnit calorieUnit];
+    return [self getMostRecentWithTypeUnit:HealthType :HealthUnit];
 }
 
 - (double)getMostRecentDistance

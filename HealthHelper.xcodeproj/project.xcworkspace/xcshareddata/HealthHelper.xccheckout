@@ -10,14 +10,14 @@
 	<string>HealthHelper</string>
 	<key>IDESourceControlProjectOriginsDictionary</key>
 	<dict>
-		<key>437314CE6944214C161A33963AC37D621CFD9258</key>
+		<key>A3A51ED09BF243522F1405138FBC7AA443C9AFDC</key>
 		<string>http://atcgit.chicony.com.tw/sw1/atchealth.git</string>
 	</dict>
 	<key>IDESourceControlProjectPath</key>
 	<string>HealthHelper.xcodeproj</string>
 	<key>IDESourceControlProjectRelativeInstallPathDictionary</key>
 	<dict>
-		<key>437314CE6944214C161A33963AC37D621CFD9258</key>
+		<key>A3A51ED09BF243522F1405138FBC7AA443C9AFDC</key>
 		<string>../..</string>
 	</dict>
 	<key>IDESourceControlProjectURL</key>
@@ -25,14 +25,14 @@
 	<key>IDESourceControlProjectVersion</key>
 	<integer>111</integer>
 	<key>IDESourceControlProjectWCCIdentifier</key>
-	<string>437314CE6944214C161A33963AC37D621CFD9258</string>
+	<string>A3A51ED09BF243522F1405138FBC7AA443C9AFDC</string>
 	<key>IDESourceControlProjectWCConfigurations</key>
 	<array>
 		<dict>
 			<key>IDESourceControlRepositoryExtensionIdentifierKey</key>
 			<string>public.vcs.git</string>
 			<key>IDESourceControlWCCIdentifierKey</key>
-			<string>437314CE6944214C161A33963AC37D621CFD9258</string>
+			<string>A3A51ED09BF243522F1405138FBC7AA443C9AFDC</string>
 			<key>IDESourceControlWCCName</key>
 			<string>iOS-HealthHelper</string>
 		</dict>
